@@ -198,6 +198,8 @@
 
         // چێککردنی یەکەمجار
         window.onload = async function() {
+            console.log('App loaded');
+            
             // پیشاندانی ڕێنمایی دابەزاندن
             if (!window.matchMedia('(display-mode: standalone)').matches) {
                 document.getElementById('installBanner').style.display = 'block';
@@ -217,11 +219,22 @@
             }
             
             // بارکردنی بەکارهێنەر هەڵگیراو
-            const savedId = localStorage.getItem('userId');
-            if (savedId) {
-                currentUserId = savedId;
-                document.getElementById('userId').value = savedId;
-                loadUserData(savedId);
+            try {
+                const savedId = localStorage.getItem('userId');
+                console.log('Saved ID:', savedId);
+                
+                if (savedId && savedId !== 'null' && savedId !== '') {
+                    currentUserId = savedId;
+                    document.getElementById('userId').value = savedId;
+                    
+                    // ڕاستەوخۆ چوونەژوورەوە
+                    document.getElementById('loginForm').classList.remove('active');
+                    document.getElementById('dataView').classList.add('active');
+                    
+                    loadUserData(savedId);
+                }
+            } catch (e) {
+                console.error('LocalStorage error:', e);
             }
             
             // بەردەوامبوون لە پشتەوە
@@ -314,10 +327,22 @@
                 
                 if (data.success) {
                     currentUserId = userId;
-                    localStorage.setItem('userId', userId);
+                    
+                    // هەڵگرتنی ID بە دڵنیاییەوە
+                    try {
+                        localStorage.setItem('userId', userId);
+                        console.log('Saved user ID:', userId);
+                        
+                        // دووبارە چێککردنەوە
+                        const check = localStorage.getItem('userId');
+                        console.log('Verified saved ID:', check);
+                    } catch (e) {
+                        console.error('Failed to save ID:', e);
+                    }
+                    
                     displayData(data.data);
                     startMonitoring();
-                    showBanner('✓ سەرکەوتوو بوو', 2000);
+                    showBanner('✓ سەرکەوتوو بوو - ID هەڵگیرا', 2000);
                 } else {
                     showError('ID نەدۆزرایەوە');
                 }
@@ -328,6 +353,13 @@
         }
 
         function loadUserData(userId) {
+            if (!userId || userId === 'null' || userId === '') {
+                console.log('No valid user ID');
+                document.getElementById('dataView').classList.remove('active');
+                document.getElementById('loginForm').classList.add('active');
+                return;
+            }
+            
             showLoading();
             
             fetch(`${SCRIPT_URL}?action=getUserData&id=${userId}`)
@@ -336,14 +368,20 @@
                     if (data.success) {
                         displayData(data.data);
                         startMonitoring();
+                        console.log('User data loaded successfully');
                     } else {
+                        console.log('User not found, clearing storage');
                         localStorage.removeItem('userId');
+                        currentUserId = null;
                         document.getElementById('dataView').classList.remove('active');
                         document.getElementById('loginForm').classList.add('active');
+                        showError('ID نەدۆزرایەوە - تکایە دووبارە لۆگین بکە');
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('Error loading data:', error);
+                    showError('هەڵە لە بارکردنی داتا');
+                    // بەڵام ID-کە مەسڕەوە، بەڵکو بتوانیت دواتر دووبارە هەوڵبدەیتەوە
                 });
         }
 
